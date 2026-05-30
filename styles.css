@@ -1,0 +1,32 @@
+body {
+  width: 320px;
+  font-family: Arial, sans-serif;
+  padding: 15px;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+input {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: black;
+  color: white;
+}
+
+.result-card {
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 10px;
+}
