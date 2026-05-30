@@ -1,21 +1,23 @@
 {
   "manifest_version": 3,
   "name": "Insta AI Saver",
-  "version": "1.0",
-  "description": "Automatically save Instagram Reels with AI descriptions.",
-  "permissions": [
-    "storage"
-  ],
+  "version": "1.0.0",
+  "description": "AI powered Instagram save manager",
+  "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": [
-    "*://*.instagram.com/*"
+    "https://www.instagram.com/*",
+    "http://localhost:3000/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["*://*.instagram.com/*"],
+      "matches": ["https://www.instagram.com/*"],
       "js": ["content.js"]
     }
-  ]
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
 }
