@@ -16,15 +16,41 @@ function extractPostId(url) {
 * Get Logged In Instagram Username
   */
 function getLoggedInUsername() {
-  const meta = document.querySelector('meta[property="og:title"]');
+  // Try profile image alt text
+  const profileImg = document.querySelector('img[alt*="profile picture"]');
 
-  if (!meta) return "unknown_user";
+  if (profileImg) {
+    let altText = profileImg.alt;
+    if (altText) {
+      // Example:
+      // "sumit.artz's profile picture"
 
-  const content = meta.getAttribute("content");
+      let username = altText
+        .replace("'s profile picture", "")
+        .replace("profile picture", "")
+        .trim();
 
-  if (!content) return "unknown_user";
+      return username;
+    }
+  }
 
-  return content.split("•")[0]?.trim() || "unknown_user";
+  // Fallback method
+  const links = document.querySelectorAll('a[href^="/"]');
+
+  for (const link of links) {
+    const href = link.getAttribute("href");
+
+    if (
+      href &&
+      href.split("/").length === 3 &&
+      !href.includes("reel") &&
+      !href.includes("p")
+    ) {
+      return href.replaceAll("/", "");
+    }
+  }
+
+  return "unknown_user";
 }
 
 /**
@@ -51,52 +77,59 @@ function extractCreatorUsername(postArticle) {
 
 * Extract Full Caption
   */
-function extractCaption(postArticle) {
-  let caption = "";
+async function extractCaption(postArticle) {
+  if (!postArticle) return "";
 
-  // METHOD 1 → Meta description
-  const metaDescription = document.querySelector(
-    'meta[property="og:description"]',
+  /**
+
+* Auto expand caption
+  */
+
+  const moreButton = [...postArticle.querySelectorAll("span")].find(
+    (el) => el.innerText?.trim().toLowerCase() === "more",
   );
 
-  if (metaDescription) {
-    const content = metaDescription.getAttribute("content");
+  if (moreButton) {
+    console.log("📖 Clicking more...");
+    moreButton.click();
 
-    if (content) {
-      let cleaned = content;
+    // wait for DOM update
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
 
-      cleaned = cleaned.replace(/^.*?on Instagram:\s*/i, "");
+  let caption = "";
 
-      cleaned = cleaned.replace(/^["']|["']$/g, "");
+  const elements = postArticle.querySelectorAll("span, div, h1");
 
-      caption = cleaned.trim();
+  let bestText = "";
+
+  elements.forEach((el) => {
+    const text = el.innerText?.trim();
+
+    if (!text) return;
+
+    const ignored = [
+      "Follow",
+      "Following",
+      "Original audio",
+      "See translation",
+      "View replies",
+      "Liked by",
+      "more",
+    ];
+
+    if (ignored.some((word) => text.includes(word))) {
+      return;
     }
-  }
 
-  // METHOD 2 → DOM scan fallback
-  if (!caption && postArticle) {
-    const spans = postArticle.querySelectorAll("span");
+    if (text.length < 20) return;
 
-    let bestText = "";
+    if (text.length > bestText.length) {
+      bestText = text;
+    }
+  });
 
-    spans.forEach((span) => {
-      const text = span.innerText?.trim();
-
-      if (
-        text &&
-        text.length > bestText.length &&
-        text.length > 25 &&
-        !text.includes("Follow") &&
-        !text.includes("Original audio") &&
-        !text.includes("more") &&
-        !text.includes("See translation")
-      ) {
-        bestText = text;
-      }
-    });
-
-    caption = bestText;
-  }
+  caption = bestText;
 
   return caption;
 }
@@ -181,13 +214,19 @@ document.addEventListener("click", async (event) => {
     processedPosts.delete(uniqueKey);
   }, 3000);
 
+  /**
+
+* Wait for Instagram save action to complete
+  */
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
   const payload = {
     action,
     postId,
     postUrl,
     loggedInUser: getLoggedInUsername(),
     creatorUsername: extractCreatorUsername(postArticle),
-    caption: extractCaption(postArticle),
+    caption: await extractCaption(postArticle),
     timestamp: new Date().toISOString(),
   };
 
@@ -200,146 +239,3 @@ document.addEventListener("click", async (event) => {
 
   showToast(action === "save" ? "✅ Reel Saved" : "❌ Reel Unsaved");
 });
-
-// console.log("🚀 Insta AI Saver script loaded properly!");
-
-// /**
-
-// * Extract Reel/Post ID
-//   */
-// function extractReelId(url) {
-//   const match = url.match(/\/(reel|p)\/([^/]+)\//);
-//   return match ? match[2] : null;
-// }
-
-// /**
-
-// * Extract Caption Properly
-//   */
-// function extractCaption(postArticle) {
-//   let caption = "";
-
-//   // STEP 1 → Try Open Graph Meta
-//   const metaDescription = document.querySelector(
-//     'meta[property="og:description"]',
-//   );
-
-//   if (metaDescription) {
-//     const content = metaDescription.getAttribute("content");
-
-//     if (content) {
-//       // Example:
-//       // "sumit: Coding late night 🔥"
-//       const splitContent = content.split(":");
-
-//       if (splitContent.length > 1) {
-//         caption = splitContent.slice(1).join(":").trim();
-//       } else {
-//         caption = content.trim();
-//       }
-//     }
-//   }
-
-//   // STEP 2 → Fallback DOM Scan
-//   if (!caption && postArticle) {
-//     const spans = postArticle.querySelectorAll("span");
-
-//     let longestText = "";
-
-//     spans.forEach((span) => {
-//       const text = span.innerText?.trim();
-
-//       if (
-//         text &&
-//         text.length > longestText.length &&
-//         text.length > 20 &&
-//         !text.includes("Follow") &&
-//         !text.includes("Original audio") &&
-//         !text.includes("Liked by")
-//       ) {
-//         longestText = text;
-//       }
-//     });
-
-//     caption = longestText;
-//   }
-
-//   return caption;
-// }
-
-// /**
-
-// * Extract Username
-//   */
-// function extractUsername(postArticle) {
-//   let username = "unknown_user";
-
-//   if (postArticle) {
-//     const profileLinks = postArticle.querySelectorAll('a[href^="/"]');
-
-//     for (const link of profileLinks) {
-//       const href = link.getAttribute("href");
-
-//       if (href && !href.includes("/p/") && !href.includes("/reel/")) {
-//         username = href.replaceAll("/", "");
-//         break;
-//       }
-//     }
-//   }
-
-//   return username;
-// }
-
-// /**
-
-// * Main Click Listener
-//   */
-// document.addEventListener("click", function (event) {
-//   const clickedElement = event.target;
-
-//   const saveButton =
-//     clickedElement.closest('[aria-label="Save"]') ||
-//     clickedElement.closest('svg[aria-label="Save"]');
-
-//   if (!saveButton) return;
-
-//   console.log("✅ Save button detected!");
-
-//   // Default URL
-//   let postUrl = window.location.href;
-
-//   // Find related article
-//   const postArticle = clickedElement.closest("article");
-
-//   // Better URL extraction
-//   if (postArticle) {
-//     const specificPostLink = postArticle.querySelector(
-//       'a[href*="/p/"], a[href*="/reel/"]',
-//     );
-
-//     if (specificPostLink) {
-//       postUrl = specificPostLink.href;
-//     }
-//   }
-
-//   const reelId = extractReelId(postUrl);
-
-//   const username = extractUsername(postArticle);
-
-//   const caption = extractCaption(postArticle);
-
-//   const payload = {
-//     reelId,
-//     url: postUrl,
-//     username,
-//     caption,
-//     timestamp: new Date().toISOString(),
-//   };
-
-//   console.log("📦 FINAL PAYLOAD:", payload);
-
-//   chrome.runtime.sendMessage({
-//     action: "save_reel",
-//     data: payload,
-//   });
-// });
