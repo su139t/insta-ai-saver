@@ -28,8 +28,12 @@ async function processWithEngine(postUrl: string, cookies: string[]) {
 
     return {
       videoPath: data.filepath as string | undefined,
-      // Engine's description is a good fallback/supplement to the caption.
-      transcript: data.description as string | undefined,
+      // yt-dlp's `description` is the FULL, untruncated post caption —
+      // much more complete than what the extension can scrape from the DOM.
+      fullCaption: data.description as string | undefined,
+      // Speech-to-text of the reel's audio — lets users search by words
+      // that are *spoken* in the video, not just written in the caption.
+      transcript: data.transcript as string | undefined,
     };
   } catch (err) {
     console.warn("⚠️ Engine unreachable, saving metadata only:", err);
@@ -81,14 +85,18 @@ export async function POST(req: Request) {
     // only, and never persisted to the database.
     const enriched = await processWithEngine(postUrl, body.cookies);
 
+    // Prefer the engine's full caption; fall back to the scraped caption
+    // (which may be truncated) if the engine is unavailable.
+    const fullCaption = enriched?.fullCaption || caption || "";
+
     const newPost = await Post.create({
       postId,
       postUrl,
       loggedInUser,
       creatorUsername,
-      caption,
+      caption: fullCaption,
+      transcript: enriched?.transcript || "",
       videoPath: enriched?.videoPath,
-      transcript: enriched?.transcript,
       timestamp: body.timestamp,
     });
 

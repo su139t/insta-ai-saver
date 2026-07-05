@@ -3,11 +3,61 @@ from pydantic import BaseModel
 import yt_dlp
 import os
 
+from faster_whisper import WhisperModel
+
 app = FastAPI()
 
 DOWNLOAD_FOLDER = "downloads"
 
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+
+# Speech-to-text model. "base" is a good speed/accuracy balance on CPU.
+# Override with WHISPER_MODEL=small / medium for better accuracy (slower).
+WHISPER_MODEL_SIZE = os.environ.get("WHISPER_MODEL", "base")
+
+# Loaded lazily on first use so the server starts instantly and the model
+# (downloaded from Hugging Face on first run) is only fetched when needed.
+_whisper_model = None
+
+
+def get_whisper_model():
+    global _whisper_model
+
+    if _whisper_model is None:
+        print(f"🧠 Loading Whisper model '{WHISPER_MODEL_SIZE}' (first run may download it)...")
+        _whisper_model = WhisperModel(
+            WHISPER_MODEL_SIZE,
+            device="cpu",
+            compute_type="int8",
+        )
+
+    return _whisper_model
+
+
+def transcribe_audio(filepath):
+    """
+    Transcribe the spoken audio of a reel into text.
+    Best-effort: returns "" on any failure so a save never breaks.
+    """
+    try:
+        if not filepath or not os.path.exists(filepath):
+            return ""
+
+        print("🎧 Transcribing audio:", filepath)
+
+        model = get_whisper_model()
+
+        segments, info = model.transcribe(filepath)
+
+        text = " ".join(segment.text.strip() for segment in segments).strip()
+
+        print(f"📝 Transcript ({info.language}, {len(text)} chars)")
+
+        return text
+
+    except Exception as err:
+        print("⚠️ Transcription failed:", str(err))
+        return ""
 
 
 class ReelRequest(BaseModel):
@@ -132,6 +182,9 @@ async def download_reel(data: ReelRequest):
             filepath
         )
 
+        # Extract spoken words from the reel's audio.
+        transcript = transcribe_audio(filepath)
+
         return {
             "success": True,
 
@@ -142,6 +195,8 @@ async def download_reel(data: ReelRequest):
             "description": description,
 
             "filepath": filepath,
+
+            "transcript": transcript,
         }
 
     except Exception as e:

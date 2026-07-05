@@ -7,8 +7,29 @@ const processedPosts = new Set();
 * Extract Reel/Post ID
   */
 function extractPostId(url) {
-  const match = url.match(/\/(reel|p)\/([^/]+)\//);
-  return match ? match[2] : null;
+  // Handles /reel/<id>/, /reels/<id>/ (scroll feed) and /p/<id>/,
+  // whether or not there's a trailing slash or query string.
+  const match = url.match(/\/(?:reels?|p)\/([^/?#]+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Find the container element for the clicked post.
+ * Normal posts live in <article>; the reels scroll feed does not use
+ * <article>, so fall back to the nearest ancestor that holds the reel <video>.
+ */
+function findPostContainer(el) {
+  const article = el.closest("article");
+  if (article) return article;
+
+  let node = el;
+  while (node && node !== document.body) {
+    if (node.querySelector && node.querySelector("video")) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
 }
 
 /**
@@ -108,16 +129,23 @@ async function extractCaption(postArticle) {
 * Auto expand caption
   */
 
-  const moreButton = [...postArticle.querySelectorAll("span")].find(
-    (el) => el.innerText?.trim().toLowerCase() === "more",
-  );
+  // Instagram renders the expander as "more" or "… more" on a <span>/<button>.
+  const findMoreButton = () =>
+    [...postArticle.querySelectorAll("span, button")].find((el) => {
+      const t = el.innerText?.trim().toLowerCase();
+      return t === "more" || t === "… more" || t === "...more";
+    });
 
-  if (moreButton) {
+  // Expand a couple of times in case the caption reveals nested "more" links.
+  for (let i = 0; i < 3; i++) {
+    const moreButton = findMoreButton();
+    if (!moreButton) break;
+
     console.log("📖 Clicking more...");
     moreButton.click();
 
-    // wait for DOM update
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // wait for the DOM to render the expanded caption
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   let caption = "";
@@ -205,23 +233,38 @@ document.addEventListener("click", async (event) => {
 
   console.log(`✅ ${action.toUpperCase()} detected`);
 
-  const postArticle = clickedElement.closest("article");
+  const postContainer = findPostContainer(clickedElement);
 
-  let postUrl = window.location.href;
+  // Build candidate URLs, then pick the first that yields a real post id.
+  // NOTE: only match specific-post links (/reel/<id>/, /p/<id>/) inside the
+  // container — a bare "/<user>/reels/" is the creator's reels *tab*, not a
+  // post, and has no id. The scroll-feed reel id lives in the page URL.
+  const candidates = [];
 
-  if (postArticle) {
-    const postLink = postArticle.querySelector(
-      'a[href*="/reel/"], a[href*="/p/"]',
-    );
+  if (postContainer) {
+    postContainer
+      .querySelectorAll('a[href*="/reel/"], a[href*="/p/"]')
+      .forEach((a) => candidates.push(a.href));
+  }
 
-    if (postLink) {
-      postUrl = postLink.href;
+  candidates.push(window.location.href);
+
+  let postUrl = null;
+  let postId = null;
+
+  for (const url of candidates) {
+    const id = extractPostId(url);
+    if (id) {
+      postUrl = url;
+      postId = id;
+      break;
     }
   }
 
-  const postId = extractPostId(postUrl);
-
-  if (!postId) return;
+  if (!postId) {
+    console.warn("⚠️ Could not determine post id. Tried:", candidates);
+    return;
+  }
 
   // Duplicate prevention
   const uniqueKey = `${action}-${postId}`;
@@ -248,8 +291,8 @@ document.addEventListener("click", async (event) => {
     postId,
     postUrl,
     loggedInUser: getLoggedInUsername(),
-    creatorUsername: extractCreatorUsername(postArticle),
-    caption: await extractCaption(postArticle),
+    creatorUsername: extractCreatorUsername(postContainer),
+    caption: await extractCaption(postContainer),
     timestamp: new Date().toISOString(),
   };
 
