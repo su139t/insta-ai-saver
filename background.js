@@ -1,70 +1,80 @@
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  if (request.action !== "instagram_action") return;
+/**
+ * background.js
+ */
 
-  console.log("📨 Data Received");
+console.log("🚀 Background Service Worker Running");
 
-  console.log(request.data);
+// Single place to configure where the backend lives.
+const API_BASE = "http://localhost:3000";
 
-  try {
-    const response = await fetch("http://localhost:3000/api/instagram", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+/**
+ * Get Instagram cookies (needed by the AI engine to download gated reels).
+ */
+async function getInstagramCookies() {
+  return new Promise((resolve) => {
+    chrome.cookies.getAll(
+      {
+        url: "https://www.instagram.com",
       },
-      body: JSON.stringify(request.data),
-    });
 
-    const result = await response.json();
+      (cookies) => {
+        const formattedCookies = cookies.map((cookie) => {
+          return `${cookie.name}=${cookie.value}`;
+        });
 
-    console.log("✅ Backend Response:", result);
+        resolve(formattedCookies);
+      },
+    );
+  });
+}
 
-    sendResponse({
-      success: true,
-    });
-  } catch (error) {
-    console.error("❌ Backend Error:", error);
+/**
+ * Do the actual work for an incoming save/unsave event.
+ */
+async function handleInstagramAction(data) {
+  console.log("📨 Data Received", data);
 
-    sendResponse({
-      success: false,
-    });
+  const cookies = await getInstagramCookies();
+
+  const payload = {
+    ...data,
+    cookies,
+  };
+
+  const response = await fetch(`${API_BASE}/api/instagram`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const result = await response.json();
+
+  console.log("✅ Backend Response:", result);
+
+  return result;
+}
+
+/**
+ * Listen for messages from content.js.
+ *
+ * NOTE: the listener callback itself must NOT be `async`. An async listener
+ * returns a Promise, so Chrome never sees the `return true` that keeps the
+ * message port open, and `sendResponse` can fire after the port has closed.
+ * Instead we return `true` synchronously and resolve the async work inside.
+ */
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action !== "instagram_action") {
+    return; // not ours — let other listeners handle it
   }
 
-  return true;
+  handleInstagramAction(request.data)
+    .then((result) => sendResponse({ success: true, result }))
+    .catch((error) => {
+      console.error("❌ Background Error:", error);
+      sendResponse({ success: false, error: error.message });
+    });
+
+  return true; // keep the message channel open for the async sendResponse
 });
-
-// chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-//   if (request.action !== "save_reel") return;
-
-//   console.log("🎉 Reel data received!");
-
-//   console.log("🔗 URL:", request.data.url);
-//   console.log("🆔 Reel ID:", request.data.reelId);
-//   console.log("👤 Username:", request.data.username);
-//   console.log("📝 Caption:", request.data.caption);
-
-//   try {
-//     const response = await fetch("http://localhost:3000/api/save-reel", {
-//       method: "POST",
-//       headers: {
-//         "Content-Type": "application/json",
-//       },
-//       body: JSON.stringify(request.data),
-//     });
-
-//     const result = await response.json();
-
-//     console.log("✅ Sent to backend:", result);
-
-//     sendResponse({
-//       success: true,
-//     });
-//   } catch (error) {
-//     console.error("❌ Backend Error:", error);
-
-//     sendResponse({
-//       success: false,
-//     });
-//   }
-
-//   return true;
-// });

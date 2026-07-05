@@ -29,7 +29,9 @@ function getLoggedInUsername() {
         .replace("'s profile picture", "")
         .replace("profile picture", "")
         .trim();
-
+      chrome.storage.local.set({
+        loggedInUser: username,
+      });
       return username;
     }
   }
@@ -60,18 +62,39 @@ function getLoggedInUsername() {
 function extractCreatorUsername(postArticle) {
   if (!postArticle) return "unknown_creator";
 
+  // Instagram routes that are NOT user profiles.
+  const NON_PROFILE = [
+    "explore",
+    "reels",
+    "reel",
+    "p",
+    "stories",
+    "direct",
+    "accounts",
+    "about",
+    "tags",
+  ];
+
   const profileLinks = postArticle.querySelectorAll('a[href^="/"]');
 
   for (const link of profileLinks) {
     const href = link.getAttribute("href");
+    if (!href) continue;
 
-    if (href && !href.includes("/reel/") && !href.includes("/p/")) {
-      return href.replaceAll("/", "");
-    }
+    // A profile link looks like "/username/" — exactly one path segment.
+    const segments = href.split("/").filter(Boolean);
+    if (segments.length !== 1) continue;
+
+    const username = segments[0];
+    if (NON_PROFILE.includes(username.toLowerCase())) continue;
+    if (username.startsWith("#") || username.startsWith("?")) continue;
+
+    return username;
   }
 
   return "unknown_creator";
 }
+
 
 /**
 

@@ -1,0 +1,25 @@
+# OS
+.DS_Store
+
+# Secrets / env
+.env
+.env.*
+*.pem
+
+# Instagram session cookies (NEVER commit)
+**/temp_cookies.txt
+insta-ai-engine/*.txt
+
+# Python engine
+insta-ai-engine/venv/
+insta-ai-engine/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Downloaded media
+insta-ai-engine/downloads/
+*.mp4
+
+# Node / Next.js (backend has its own .gitignore too)
+insta-ai-backend/node_modules/
+insta-ai-backend/.next/

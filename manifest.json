@@ -1,22 +1,26 @@
 {
   "manifest_version": 3,
+
   "name": "Insta AI Saver",
+
   "version": "1.0.0",
-  "description": "AI powered Instagram save manager",
-  "permissions": ["storage", "activeTab", "scripting"],
-  "host_permissions": [
-    "https://www.instagram.com/*",
-    "http://localhost:3000/*"
-  ],
+
+  "permissions": ["storage", "activeTab", "scripting", "cookies"],
+
+  "host_permissions": ["https://*.instagram.com/*", "http://localhost:3000/*"],
+
   "background": {
     "service_worker": "background.js"
   },
+
   "content_scripts": [
     {
-      "matches": ["https://www.instagram.com/*"],
+      "matches": ["https://*.instagram.com/*"],
+
       "js": ["content.js"]
     }
   ],
+
   "action": {
     "default_popup": "popup.html"
   }
