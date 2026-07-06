@@ -54,6 +54,15 @@ input {
   transform: scale(1.01);
 }
 
+.thumb {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: #eee;
+}
+
 .creator {
   font-weight: bold;
 
@@ -72,18 +81,34 @@ input {
   overflow: hidden;
 }
 
-.open-btn {
+.card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.open-btn,
+.download-btn {
   display: inline-block;
 
   text-decoration: none;
-
-  background: black;
-
-  color: white;
 
   padding: 8px 12px;
 
   border-radius: 8px;
 
   font-size: 12px;
+}
+
+.open-btn {
+  background: black;
+  color: white;
+}
+
+.download-btn {
+  background: #0095f6;
+  color: white;
+}
+
+.download-btn:hover {
+  background: #0077c6;
 }

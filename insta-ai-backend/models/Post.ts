@@ -19,8 +19,11 @@ const PostSchema = new mongoose.Schema(
     caption: String,
 
     // Filled in by the AI engine after the reel is downloaded/processed.
-    videoPath: String,
-    transcript: String,
+    thumbnail: String, // preview image URL (Instagram CDN)
+    videoUrl: String, // direct video URL (Instagram CDN) — may expire
+    transcript: String, // spoken audio, native language (e.g. Hindi)
+    translation: String, // spoken audio, translated to English
+    hinglish: String, // transcript transliterated to roman/Hinglish
 
     timestamp: String,
   },

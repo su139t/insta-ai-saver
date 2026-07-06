@@ -27,13 +27,21 @@ async function processWithEngine(postUrl: string, cookies: string[]) {
     }
 
     return {
-      videoPath: data.filepath as string | undefined,
+      // Direct CDN video URL + preview image (the file itself is deleted
+      // by the engine right after transcription).
+      videoUrl: data.videoUrl as string | undefined,
+      thumbnail: data.thumbnail as string | undefined,
       // yt-dlp's `description` is the FULL, untruncated post caption —
       // much more complete than what the extension can scrape from the DOM.
       fullCaption: data.description as string | undefined,
       // Speech-to-text of the reel's audio — lets users search by words
       // that are *spoken* in the video, not just written in the caption.
       transcript: data.transcript as string | undefined,
+      translation: data.translation as string | undefined,
+      hinglish: data.hinglish as string | undefined,
+      // Reel owner's username, straight from yt-dlp (reliable, unlike the
+      // extension's DOM scraping which fails on the reels scroll feed).
+      uploader: data.uploader as string | undefined,
     };
   } catch (err) {
     console.warn("⚠️ Engine unreachable, saving metadata only:", err);
@@ -89,14 +97,25 @@ export async function POST(req: Request) {
     // (which may be truncated) if the engine is unavailable.
     const fullCaption = enriched?.fullCaption || caption || "";
 
+    // Prefer the engine's uploader; fall back to the scraped creator.
+    const creator =
+      enriched?.uploader ||
+      (creatorUsername && creatorUsername !== "unknown_creator"
+        ? creatorUsername
+        : "") ||
+      "unknown_creator";
+
     const newPost = await Post.create({
       postId,
       postUrl,
       loggedInUser,
-      creatorUsername,
+      creatorUsername: creator,
       caption: fullCaption,
       transcript: enriched?.transcript || "",
-      videoPath: enriched?.videoPath,
+      translation: enriched?.translation || "",
+      hinglish: enriched?.hinglish || "",
+      thumbnail: enriched?.thumbnail || "",
+      videoUrl: enriched?.videoUrl || "",
       timestamp: body.timestamp,
     });
 

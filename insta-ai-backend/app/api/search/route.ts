@@ -39,6 +39,20 @@ export async function GET(req: Request) {
             $options: "i",
           },
         },
+
+        {
+          translation: {
+            $regex: query,
+            $options: "i",
+          },
+        },
+
+        {
+          hinglish: {
+            $regex: query,
+            $options: "i",
+          },
+        },
       ],
     })
       .sort({
