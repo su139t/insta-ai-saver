@@ -114,8 +114,6 @@ python3 -m venv venv
 source venv/bin/activate
 pip install fastapi uvicorn yt-dlp faster-whisper easyocr opencv-python sentence-transformers
 uvicorn main:app --reload --port 8000
-or
-venv/bin/python -m uvicorn main:app --reload --port 8000
 ```
 
 ### Chrome Extension

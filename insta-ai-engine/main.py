@@ -3,6 +3,8 @@ from pydantic import BaseModel
 import yt_dlp
 import os
 
+from dotenv import load_dotenv
+
 from faster_whisper import WhisperModel
 
 import cloudinary
@@ -11,18 +13,16 @@ import cloudinary.uploader
 from indic_transliteration import sanscript
 from indic_transliteration.sanscript import transliterate
 
+# Load environment variables from a local .env file (never committed).
+load_dotenv()
+
 app = FastAPI()
 
-# Reads credentials from the CLOUDINARY_URL environment variable, e.g.
+# Credentials come from the CLOUDINARY_URL environment variable, e.g.
 # CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>
-# cloudinary.config(secure=True)
-# CLOUDINARY_URL=cloudinary://785429858127961:eAjmTv8xCPUgimVhSqWQtVOnEag@tvhs5rtg
-cloudinary.config( 
-    cloud_name = "tvhs5rtg", 
-    api_key = "785429858127961", 
-    api_secret = "eAjmTv8xCPUgimVhSqWQtVOnEag", # Click 'View API Keys' above to copy your API secret
-    secure=True
-)
+# (set it in insta-ai-engine/.env — see .env.example).
+cloudinary.config(secure=True)
+
 DOWNLOAD_FOLDER = "downloads"
 
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
